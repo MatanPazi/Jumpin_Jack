@@ -45,9 +45,9 @@ void loop() {
     Wire.endTransmission(false);
     Wire.requestFrom(LSM303, 6, true); // Read 6 registers total, each axis value is stored in 2 registers
     // Data read is lower 8 bits then higher 8 bits
-    AccX[counter] = (Wire.read() | Wire.read() << 8); // X-axis value
-    AccY[counter] = (Wire.read() | Wire.read() << 8); // Y-axis value
-    AccZ[counter] = (Wire.read() | Wire.read() << 8); // Z-axis value
+    AccX[Counter] = (Wire.read() | Wire.read() << 8); // X-axis value
+    AccY[Counter] = (Wire.read() | Wire.read() << 8); // Y-axis value
+    AccZ[Counter] = (Wire.read() | Wire.read() << 8); // Z-axis value
     Counter++;
   }
   
