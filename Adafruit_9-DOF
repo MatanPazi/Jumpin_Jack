@@ -52,17 +52,18 @@ void loop() {
   }
   
 // Output on Serial plotter. Choose appropriate baud rate set above.  
-    while (Counter >= 0)  {    
-      Serial.print("AccX:");
-      Serial.print(AccX[Counter]);
-      Serial.print("\t");
+  while (Counter >= 0)  {    
+    Serial.print("AccX:");
+    Serial.print(AccX[Counter]);
+    Serial.print("\t");
 
-      Serial.print("AccY:");
-      Serial.print(AccY[Counter]);
-      Serial.print(",");
+    Serial.print("AccY:");
+    Serial.print(AccY[Counter]);
+    Serial.print(",");
 
-      Serial.print("AccZ:");
-      Serial.println(AccZ[Counter]);
-      Counter--;
-    }
+    Serial.print("AccZ:");
+    Serial.println(AccZ[Counter]);
+    Counter--;
+  }
+}
   
