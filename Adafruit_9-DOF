@@ -51,3 +51,14 @@ void loop() {
     Counter++;
   }
   
+// Output on Serial plotter. Choose appropriate baud rate set above.  
+    while (Counter >= 0)  {    
+    Serial.print(AccX[counter]);
+    Serial.print("\t");
+    
+    Serial.print(AccY[counter]);
+    Serial.print(",");
+
+    Serial.println(AccZ[counter]);
+    }
+  
