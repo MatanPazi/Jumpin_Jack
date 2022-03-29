@@ -57,11 +57,11 @@ void loop() {
     Serial.print(AccX[counter]);
     Serial.print("\t");
     
-    Serial.print("AccY");
+    Serial.print("AccY:");
     Serial.print(AccY[counter]);
     Serial.print(",");
 
-    Serial.print("AccZ");
+    Serial.print("AccZ:");
     Serial.println(AccZ[counter]);
     }
   
