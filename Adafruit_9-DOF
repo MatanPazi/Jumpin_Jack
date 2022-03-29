@@ -1,17 +1,53 @@
 #include <Wire.h>
 
+#define ARR_SIZE 1000
+
 const int LSM303 = 0x19; // LSM303 I2C address, 0011001b
+int AccX[ARR_SIZE], AccY[ARR_SIZE], AccZ[ARR_SIZE];
+int Counter = 0;
+bool DataReady = 0;
 
 void setup() {
   Serial.begin(115200);
   Wire.begin();                      // Initialize comunication
-  Wire.beginTransmission(LSM303);    // Start communication with LSM303
-  Wire.write(0x6B);                  // Talk to the register 6B
-  Wire.write(0x00);                  // Make reset - place a 0 into the 6B register
-  Wire.endTransmission(true);        //end the transmission
-
-  // Configure Accelerometer Sensitivity - Full Scale Range (default +/- 2g)
+  delay(5);
+  
+  // Configure the Accelerometer different registers
   Wire.beginTransmission(LSM303);
-  Wire.write(0x1C);                  //Talk to the ACCEL_CONFIG register (1C hex)
-  Wire.write(0x10);                  //Set the register bits as 00010000 (+/- 8g full scale range)
+  Wire.write(0x20);                  // Talk to the CTRL_REG1_A register (20 hex)
+  Wire.write(0x3F);                  // PM - Power on - Normal mode
+                                     // DR - ODR = 1000 [Hz], LPF1  = 780 [Hz]
   Wire.endTransmission(true);
+  
+  delay(5);
+  
+  Wire.beginTransmission(LSM303);
+  Wire.write(0x23);                  // Talk to the CTRL_REG4_A register (23 hex)
+  Wire.write(0x30);                  // FS -  +/- 8g full scale range
+  Wire.endTransmission(true);
+  
+  delay(5);
+}
+
+void loop() {
+
+  // Do we need to divide the raw values? Doesn't seem so.
+  while (Counter < ARR_SIZE) {
+    Wire.beginTransmission(LSM303);
+    Wire.write(0x27);                  // Register STATUS_REG_A, acceleration status.
+    Wire.endTransmission(false);
+    Wire.requestFrom(LSM303, 1, true); // Read 1 registers total
+    DataReady = Wire.read() >> 7;      // We only care about the highest bit, ZYXOR
+    while (!DataReady) {               // Wait untill the data of all 3 axes is ready
+    }
+    Wire.beginTransmission(LSM303);
+    Wire.write(0x28);                  // Start with register OUT_X_L_A
+    Wire.endTransmission(false);
+    Wire.requestFrom(LSM303, 6, true); // Read 6 registers total, each axis value is stored in 2 registers
+    // Data read is lower 8 bits then higher 8 bits
+    AccX[counter] = (Wire.read() | Wire.read() << 8); // X-axis value
+    AccY[counter] = (Wire.read() | Wire.read() << 8); // Y-axis value
+    AccZ[counter] = (Wire.read() | Wire.read() << 8); // Z-axis value
+    Counter++;
+  }
+  
