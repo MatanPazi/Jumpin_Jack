@@ -8,7 +8,7 @@ To-do:
 
 #define MOVE_AVG        8            // Must change value below as well!!
 #define MOVE_AVG_POW    3            // MOVE_AVG = 2^(MOVE_AVG_POW)
-#define ARR_SIZE        1000
+#define ARR_SIZE        2500
 #define ARDUINO         1
 #define TEENSY          2
 #define BOARD           ARDUINO
@@ -102,5 +102,6 @@ void loop() {
     Serial.println(AccZArr[CounterArr]);
     Counter--;
   }
+  delay(2000);
 }
   
