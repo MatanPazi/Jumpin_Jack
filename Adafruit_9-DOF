@@ -20,8 +20,8 @@ To-do:
 #endif
 
 const int LSM303 = 0x19;             // LSM303 I2C address, 0011001b
-int AccX, AccY, AccZ;
-int AccXArr[ARR_SIZE], AccYArr[ARR_SIZE], AccZArr[ARR_SIZE];
+int AccZ;                            // AccX, AccY
+int AccZArr[ARR_SIZE];               // AccXArr[ARR_SIZE], AccYArr[ARR_SIZE]
 int Counter = 0;
 int CounterArr = 0;
 bool DataReady = 0;
@@ -62,25 +62,25 @@ void loop() {
     Wire.write(0x27);                  // Register STATUS_REG_A, acceleration status.
     Wire.endTransmission(false);
     Wire.requestFrom(LSM303, 1, true); // Read 1 registers total
-    DataReady = Wire.read() >> 7;      // We only care about the highest bit, ZYXOR
+    DataReady = Wire.read() & 0x40;    // We only care about bit 7, ZOR
     while (!DataReady) {               // Wait untill the data of all 3 axes is ready
     }
     Wire.beginTransmission(LSM303);
-    Wire.write(0x28);                  // Start with register OUT_X_L_A
+    Wire.write(0x2C);                  // Start with register OUT_Z_L_A
     Wire.endTransmission(false);
-    Wire.requestFrom(LSM303, 6, true); // Read 6 registers total, each axis value is stored in 2 registers
+    Wire.requestFrom(LSM303, 2, true); // Read 2 registers total, each axis value is stored in 2 registers
     // Data read is lower 8 bits then higher 8 bits (Actual resolution is 12 bits)
-    AccX = (Wire.read() | Wire.read() << 8); // X-axis value
-    AccY = (Wire.read() | Wire.read() << 8); // Y-axis value
+    //AccX = (Wire.read() | Wire.read() << 8); // X-axis value
+    //AccY = (Wire.read() | Wire.read() << 8); // Y-axis value
     AccZ = (Wire.read() | Wire.read() << 8); // Z-axis value
     
-    AccXArr[CounterArr] += AccX;
-    AccYArr[CounterArr] += AccY;
+    //AccXArr[CounterArr] += AccX;
+    //AccYArr[CounterArr] += AccY;
     AccZArr[CounterArr] += AccZ;
     Counter++;
     if ((Counter % MOVE_AVG) == 0) {
-      AccXArr[CounterArr] = AccX << MOVE_AVG_POW;
-      AccYArr[CounterArr] = AccY << MOVE_AVG_POW;
+      //AccXArr[CounterArr] = AccX << MOVE_AVG_POW;
+      //AccYArr[CounterArr] = AccY << MOVE_AVG_POW;
       AccZArr[CounterArr] = AccZ << MOVE_AVG_POW;
       CounterArr++;
     }
@@ -88,6 +88,7 @@ void loop() {
   
 // Output on Serial plotter. Choose appropriate baud rate set above.  
   while (CounterArr >= 0)  {    
+    /*
     Serial.print("AccX:");
     Serial.print(AccXArr[CounterArr]);
     Serial.print("\t");
@@ -95,6 +96,7 @@ void loop() {
     Serial.print("AccY:");
     Serial.print(AccYArr[CounterArr]);
     Serial.print(",");
+    */
 
     Serial.print("AccZ:");
     Serial.println(AccZArr[CounterArr]);
