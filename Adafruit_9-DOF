@@ -1,14 +1,17 @@
 /*
+Reading from accelerometer LSM303
 To-do:
-2. Add LPF ("Difference equation through discrete time sampling")
+
 */
 
 #include <Wire.h>
 
-#define ARR_SIZE    1000
-#define ARDUINO     1
-#define TEENSY      2
-#define BOARD       ARDUINO
+#define MOVE_AVG        8            // Must change value below as well!!
+#define MOVE_AVG_POW    3            // MOVE_AVG = 2^(MOVE_AVG_POW)
+#define ARR_SIZE        1000
+#define ARDUINO         1
+#define TEENSY          2
+#define BOARD           ARDUINO
 
 #if BOARD == ARDUINO
 #define LED_BUILTIN 13
@@ -16,9 +19,11 @@ To-do:
 #define LED_BUILTIN 11
 #endif
 
-const int LSM303 = 0x19; // LSM303 I2C address, 0011001b
-int AccX[ARR_SIZE], AccY[ARR_SIZE], AccZ[ARR_SIZE];
+const int LSM303 = 0x19;             // LSM303 I2C address, 0011001b
+int AccX, AccY, AccZ;
+int AccXArr[ARR_SIZE], AccYArr[ARR_SIZE], AccZArr[ARR_SIZE];
 int Counter = 0;
+int CounterArr = 0;
 bool DataReady = 0;
 
 void setup() {
@@ -28,7 +33,6 @@ void setup() {
   delay(5000);
   digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW  
     
-  
   Serial.begin(115200);
   Wire.begin();                      // Initialize comunication
   delay(5);
@@ -65,25 +69,35 @@ void loop() {
     Wire.write(0x28);                  // Start with register OUT_X_L_A
     Wire.endTransmission(false);
     Wire.requestFrom(LSM303, 6, true); // Read 6 registers total, each axis value is stored in 2 registers
-    // Data read is lower 8 bits then higher 8 bits
-    AccX[Counter] = (Wire.read() | Wire.read() << 8); // X-axis value
-    AccY[Counter] = (Wire.read() | Wire.read() << 8); // Y-axis value
-    AccZ[Counter] = (Wire.read() | Wire.read() << 8); // Z-axis value
+    // Data read is lower 8 bits then higher 8 bits (Actual resolution is 12 bits)
+    AccX = (Wire.read() | Wire.read() << 8); // X-axis value
+    AccY = (Wire.read() | Wire.read() << 8); // Y-axis value
+    AccZ = (Wire.read() | Wire.read() << 8); // Z-axis value
+    
+    AccXArr[CounterArr] += AccX;
+    AccYArr[CounterArr] += AccY;
+    AccZArr[CounterArr] += AccZ;
     Counter++;
+    if ((Counter % MOVE_AVG) == 0) {
+      AccXArr[CounterArr] = AccX << MOVE_AVG_POW;
+      AccYArr[CounterArr] = AccY << MOVE_AVG_POW;
+      AccZArr[CounterArr] = AccZ << MOVE_AVG_POW;
+      CounterArr++;
+    }
   }
   
 // Output on Serial plotter. Choose appropriate baud rate set above.  
-  while (Counter >= 0)  {    
+  while (CounterArr >= 0)  {    
     Serial.print("AccX:");
-    Serial.print(AccX[Counter]);
+    Serial.print(AccXArr[CounterArr]);
     Serial.print("\t");
 
     Serial.print("AccY:");
-    Serial.print(AccY[Counter]);
+    Serial.print(AccYArr[CounterArr]);
     Serial.print(",");
 
     Serial.print("AccZ:");
-    Serial.println(AccZ[Counter]);
+    Serial.println(AccZArr[CounterArr]);
     Counter--;
   }
 }
