@@ -8,7 +8,7 @@ To-do:
 
 #define MOVE_AVG        8            // Must change value below as well!!
 #define MOVE_AVG_POW    3            // MOVE_AVG = 2^(MOVE_AVG_POW)
-#define ARR_SIZE        2500
+#define ARR_SIZE        500
 #define ARDUINO         1
 #define TEENSY          2
 #define BOARD           ARDUINO
@@ -19,7 +19,7 @@ To-do:
 #define LED_BUILTIN 11
 #endif
 
-const int LSM303 = 0x19;             // LSM303 I2C address, 0011001b
+const int LSM303 = 0x32;             // LSM303 I2C address, 0011001b
 int AccZ;                            // AccX, AccY
 int AccZArr[ARR_SIZE];               // AccXArr[ARR_SIZE], AccYArr[ARR_SIZE]
 int Counter = 0;
@@ -27,13 +27,12 @@ int CounterArr = 0;
 bool DataReady = 0;
 
 void setup() {
-  // Blink LED to indicate recording start
-  delay(2000);
-  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(5000);
-  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW  
-    
   Serial.begin(115200);
+  // Blink LED to indicate recording start
+  delay(200);
+  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(500);
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW  
   Wire.begin();                      // Initialize comunication
   delay(5);
   
@@ -50,7 +49,6 @@ void setup() {
   Wire.write(0x23);                  // Talk to the CTRL_REG4_A register (23 hex)
   Wire.write(0x30);                  // FS -  +/- 8g full scale range
   Wire.endTransmission(true);
-  
   delay(5);
 }
 
@@ -64,7 +62,10 @@ void loop() {
     Wire.requestFrom(LSM303, 1, true); // Read 1 registers total
     DataReady = Wire.read() & 0x40;    // We only care about bit 7, ZOR
     while (!DataReady) {               // Wait untill the data of all 3 axes is ready
+      Serial.println("Not ready yet");
+      DataReady = Wire.read() & 0x40;    // We only care about bit 7, ZOR
     }
+    //Serial.println(Counter);
     Wire.beginTransmission(LSM303);
     Wire.write(0x2C);                  // Start with register OUT_Z_L_A
     Wire.endTransmission(false);
@@ -73,6 +74,7 @@ void loop() {
     //AccX = (Wire.read() | Wire.read() << 8); // X-axis value
     //AccY = (Wire.read() | Wire.read() << 8); // Y-axis value
     AccZ = (Wire.read() | Wire.read() << 8); // Z-axis value
+    Serial.println(AccZ);
     
     //AccXArr[CounterArr] += AccX;
     //AccYArr[CounterArr] += AccY;
@@ -88,6 +90,8 @@ void loop() {
   
 // Output on Serial plotter. Choose appropriate baud rate set above.  
   while (CounterArr >= 0)  {    
+    // Initialize relevant counter
+    CounterArr = 0;
     /*
     Serial.print("AccX:");
     Serial.print(AccXArr[CounterArr]);
@@ -98,10 +102,15 @@ void loop() {
     Serial.print(",");
     */
 
-    Serial.print("AccZ:");
-    Serial.println(AccZArr[CounterArr]);
+    //Serial.print("AccZ:");
+    //Serial.println(AccZArr[CounterArr]);
     Counter--;
+    //Serial.println(Counter);
   }
+    // Blink LED to indicate recording start
   delay(2000);
+  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(5000);
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW 
 }
   
