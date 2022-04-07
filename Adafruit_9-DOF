@@ -19,7 +19,7 @@ To-do:
 #define LED_BUILTIN 11
 #endif
 
-const int LSM303 = 0x32;             // LSM303 I2C address, 0011001b
+const int LSM303 = 0x19;             // LSM303 I2C address, 0011001b
 int AccZ;                            // AccX, AccY
 int AccZArr[ARR_SIZE];               // AccXArr[ARR_SIZE], AccYArr[ARR_SIZE]
 int Counter = 0;
