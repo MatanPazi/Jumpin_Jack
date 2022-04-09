@@ -1,14 +1,13 @@
 /*
-Reading from accelerometer LSM303
+Reading from accelerometer LSM303DLHC
 To-do:
 
 */
 
 #include <Wire.h>
 
-#define MOVE_AVG        8            // Must change value below as well!!
-#define MOVE_AVG_POW    3            // MOVE_AVG = 2^(MOVE_AVG_POW)
-#define ARR_SIZE        500
+#define MOVE_AVG        4            // Must change value below as well!!
+#define MOVE_AVG_POW    2            // MOVE_AVG = 2^(MOVE_AVG_POW)
 #define ARDUINO         1
 #define TEENSY          2
 #define BOARD           ARDUINO
@@ -20,97 +19,71 @@ To-do:
 #endif
 
 const int LSM303 = 0x19;             // LSM303 I2C address, 0011001b
+const int CTRL_REG1_A = 0x20;
+const int CTRL_REG4_A = 0x23;
+const int  STATUS_REG_A = 0x27;
+const int  ZOR_MASK = 0x40;
+const int OUT_Z_L_A = 0x2C;
 int AccZ;                            // AccX, AccY
-int AccZArr[ARR_SIZE];               // AccXArr[ARR_SIZE], AccYArr[ARR_SIZE]
+long AccZSum;
 int Counter = 0;
 int CounterArr = 0;
 bool DataReady = 0;
+byte last_status;
+
+
 
 void setup() {
-  Serial.begin(115200);
-  // Blink LED to indicate recording start
-  delay(200);
-  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(500);
-  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW  
-  Wire.begin();                      // Initialize comunication
+  Serial.begin(115200);  
   delay(5);
-  
+  Wire.begin();
+  delay(5);
+ 
   // Configure the Accelerometer different registers
   Wire.beginTransmission(LSM303);
-  Wire.write(0x20);                  // Talk to the CTRL_REG1_A register (20 hex)
-  Wire.write(0x3F);                  // PM - Power on - Normal mode
-                                     // DR - ODR = 1000 [Hz], LPF1  = 780 [Hz]
+  Wire.write(CTRL_REG1_A);           // Talk to the CTRL_REG1_A register (20 hex)
+  Wire.write(0x97);                  // ODR -> 1.344[KHz]
   Wire.endTransmission(true);
-  
   delay(5);
   
   Wire.beginTransmission(LSM303);
-  Wire.write(0x23);                  // Talk to the CTRL_REG4_A register (23 hex)
-  Wire.write(0x30);                  // FS -  +/- 8g full scale range
+  Wire.write(CTRL_REG4_A);           // Talk to the CTRL_REG4_A register (23 hex)
+  Wire.write(0x30);                  
   Wire.endTransmission(true);
   delay(5);
+  
+  
 }
 
 void loop() {
-
-  // Do we need to divide the raw values? Doesn't seem so.
-  while (Counter < ARR_SIZE) {
-    Wire.beginTransmission(LSM303);
-    Wire.write(0x27);                  // Register STATUS_REG_A, acceleration status.
-    Wire.endTransmission(false);
-    Wire.requestFrom(LSM303, 1, true); // Read 1 registers total
-    DataReady = Wire.read() & 0x40;    // We only care about bit 7, ZOR
-    while (!DataReady) {               // Wait untill the data of all 3 axes is ready
-      Serial.println("Not ready yet");
-      DataReady = Wire.read() & 0x40;    // We only care about bit 7, ZOR
-    }
-    //Serial.println(Counter);
-    Wire.beginTransmission(LSM303);
-    Wire.write(0x2C);                  // Start with register OUT_Z_L_A
-    Wire.endTransmission(false);
-    Wire.requestFrom(LSM303, 2, true); // Read 2 registers total, each axis value is stored in 2 registers
-    // Data read is lower 8 bits then higher 8 bits (Actual resolution is 12 bits)
-    //AccX = (Wire.read() | Wire.read() << 8); // X-axis value
-    //AccY = (Wire.read() | Wire.read() << 8); // Y-axis value
-    AccZ = (Wire.read() | Wire.read() << 8); // Z-axis value
-    Serial.println(AccZ);
-    
-    //AccXArr[CounterArr] += AccX;
-    //AccYArr[CounterArr] += AccY;
-    AccZArr[CounterArr] += AccZ;
-    Counter++;
-    if ((Counter % MOVE_AVG) == 0) {
-      //AccXArr[CounterArr] = AccX << MOVE_AVG_POW;
-      //AccYArr[CounterArr] = AccY << MOVE_AVG_POW;
-      AccZArr[CounterArr] = AccZ << MOVE_AVG_POW;
-      CounterArr++;
-    }
+// Do we need to divide the raw values? Doesn't seem so.
+//  while (!DataReady) {               // Wait untill the data of all 3 axes is ready
+//    Wire.beginTransmission(LSM303);
+//    Wire.write(STATUS_REG_A);                  // Register STATUS_REG_A, acceleration status.
+//    Wire.endTransmission(false);
+//    Wire.requestFrom(LSM303, 1, true); // Read 1 registers total
+//    DataReady = (Wire.read() & ZOR_MASK);    // We only care about bit 7, ZOR
+//    Serial.println("Wait");
+//  }
+  //Serial.println(Counter);
+  Wire.beginTransmission(LSM303);
+  // assert the MSB of the address to get the accelerometer
+  // to do slave-transmit subaddress updating.
+  Wire.write(0x2C | (1 << 7));                  // Start with register OUT_Z_L_A
+  Wire.endTransmission(false);
+  Wire.requestFrom(LSM303, 2, true); // Read 2 registers total, each axis value is stored in 2 registers
+  // Data read is lower 8 bits then higher 8 bits (Actual resolution is 12 bits)
+  //AccX = (Wire.read() | Wire.read() << 8); // X-axis value
+  //AccY = (Wire.read() | Wire.read() << 8); // Y-axis value
+  AccZ = (Wire.read() | Wire.read() << 8); // Z-axis value  
+  //AccXArr[CounterArr] += AccX;
+  //AccYArr[CounterArr] += AccY;
+  AccZSum += AccZ;
+  Counter++;
+  if ((Counter >> MOVE_AVG_POW) != 0) {
+    Serial.println(AccZSum >> MOVE_AVG_POW);
+    AccZSum = 0;
+    Counter = 0;
   }
-  
-// Output on Serial plotter. Choose appropriate baud rate set above.  
-  while (CounterArr >= 0)  {    
-    // Initialize relevant counter
-    CounterArr = 0;
-    /*
-    Serial.print("AccX:");
-    Serial.print(AccXArr[CounterArr]);
-    Serial.print("\t");
-
-    Serial.print("AccY:");
-    Serial.print(AccYArr[CounterArr]);
-    Serial.print(",");
-    */
-
-    //Serial.print("AccZ:");
-    //Serial.println(AccZArr[CounterArr]);
-    Counter--;
-    //Serial.println(Counter);
-  }
-    // Blink LED to indicate recording start
-  delay(2000);
-  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(5000);
-  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW 
 }
   
