@@ -1,15 +1,16 @@
 /*
 Reading from accelerometer LSM303DLHC
 To-do:
-Remove 1g reading from Z axis (Calibrate)
-Integrate to get Vel and Pos
+Get Vel and Pos
 
 */
 
 #include <Wire.h>
 
-#define MOVE_AVG        4            // Must change value below as well!!
-#define MOVE_AVG_POW    2            // MOVE_AVG = 2^(MOVE_AVG_POW)
+#define MOVE_AVG        8            // Must change value below as well!!
+#define MOVE_AVG_POW    3            // MOVE_AVG = 2^(MOVE_AVG_POW)
+#define Z_CALI_SAMPLES  128
+#define Z_CALI_SAMPLES_POW  7
 #define ARDUINO         1
 #define TEENSY          2
 #define BOARD           ARDUINO
@@ -24,10 +25,12 @@ const int LSM303 = 0x19;             // LSM303 I2C address, 0011001b
 const int CTRL_REG1_A = 0x20;
 const int CTRL_REG4_A = 0x23;
 const int  STATUS_REG_A = 0x27;
-const int  ZOR_MASK = 0x40;
+const int  ZDA_MASK = 4;
 const int OUT_Z_L_A = 0x2C;
 int AccZ;                            // AccX, AccY
-long AccZSum;
+int AccZ_Fin;
+long AccZSum = 0;
+long AccZ_g;
 int Counter = 0;
 int CounterArr = 0;
 bool DataReady = 0;
@@ -50,42 +53,55 @@ void setup() {
   
   Wire.beginTransmission(LSM303);
   Wire.write(CTRL_REG4_A);           // Talk to the CTRL_REG4_A register (23 hex)
-  Wire.write(0x30);                  
+  Wire.write(0x10);                  
   Wire.endTransmission(true);
   delay(5);
-  
+
+  // Calibrate Z axis to remove g
+  while (Counter < Z_CALI_SAMPLES) {
+    Wire.beginTransmission(LSM303);
+    // assert the MSB of the address to get the accelerometer
+    // to do slave-transmit subaddress updating.
+    Wire.write(0x2C | (1 << 7));                  // Start with register OUT_Z_L_A
+    Wire.endTransmission(false);
+    Wire.requestFrom(LSM303, 2, true); // Read 2 registers total, each axis value is stored in 2 registers
+    // Data read is lower 8 bits then higher 8 bits (Actual resolution is ? bits)
+    AccZ = (Wire.read() | Wire.read() << 8); // Z-axis value  
+    AccZSum += AccZ;
+    Counter++;
+  }
+  AccZ_g = AccZSum >> Z_CALI_SAMPLES_POW;
+  AccZSum = 0;
+  Counter = 0;
+//  Serial.println(AccZ_g);
   
 }
 
 void loop() {
 // Do we need to divide the raw values? Doesn't seem so.
-//  while (!DataReady) {               // Wait untill the data of all 3 axes is ready
+//  while (!DataReady) {                          // Wait untill axis Z data is ready
 //    Wire.beginTransmission(LSM303);
-//    Wire.write(STATUS_REG_A);                  // Register STATUS_REG_A, acceleration status.
+//    Wire.write(STATUS_REG_A);                   // Register STATUS_REG_A, acceleration status.
 //    Wire.endTransmission(false);
-//    Wire.requestFrom(LSM303, 1, true); // Read 1 registers total
-//    DataReady = (Wire.read() & ZOR_MASK);    // We only care about bit 7, ZOR
-//    Serial.println("Wait");
+//    Wire.requestFrom(LSM303, 1, true);          // Read 1 registers total
+//    DataReady = (Wire.read() & ZDA_MASK);       // We only care about bit 2, ZDA    
 //  }
   //Serial.println(Counter);
+//  DataReady = 0;
   Wire.beginTransmission(LSM303);
   // assert the MSB of the address to get the accelerometer
   // to do slave-transmit subaddress updating.
   Wire.write(0x2C | (1 << 7));                  // Start with register OUT_Z_L_A
   Wire.endTransmission(false);
   Wire.requestFrom(LSM303, 2, true); // Read 2 registers total, each axis value is stored in 2 registers
-  // Data read is lower 8 bits then higher 8 bits (Actual resolution is 12 bits)
-  //AccX = (Wire.read() | Wire.read() << 8); // X-axis value
-  //AccY = (Wire.read() | Wire.read() << 8); // Y-axis value
+  // Data read is lower 8 bits then higher 8 bits (Actual resolution is ? bits)
   AccZ = (Wire.read() | Wire.read() << 8); // Z-axis value  
-  //AccXArr[CounterArr] += AccX;
-  //AccYArr[CounterArr] += AccY;
   AccZSum += AccZ;
   Counter++;
   if ((Counter >> MOVE_AVG_POW) != 0) {
-    Serial.println(AccZSum >> MOVE_AVG_POW);
+    AccZ_Fin = (AccZSum >> MOVE_AVG_POW) - AccZ_g;
+    Serial.println(AccZ_Fin);
     AccZSum = 0;
     Counter = 0;
   }
 }
-  
