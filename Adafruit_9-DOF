@@ -1,6 +1,8 @@
 /*
 Reading from accelerometer LSM303DLHC
 To-do:
+Remove 1g reading from Z axis (Calibrate)
+Integrate to get Vel and Pos
 
 */
 
