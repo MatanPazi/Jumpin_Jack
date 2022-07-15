@@ -1,4 +1,5 @@
-/* 15 sample sine wave look up table.
+/* Works well (July 15th)
+   15 sample sine wave look up table.
    16Mhz CPU clk & clkI/O -> Prescaler of 4 -> 4Mhz
    1 OVF scenario will occur every 256 * 2 = 512 samples.
    1/4MHz * 512 = 128[us]
