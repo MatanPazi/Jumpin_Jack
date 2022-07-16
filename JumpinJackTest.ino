@@ -59,6 +59,7 @@ volatile uint32_t Deg_In_Index = 0;                //Desired sine wave freq [Hz]
 
 float Desired_Freq = 0.0;                 //Desired motion in degrees in units of sine array indices. Updated below.
 volatile uint32_t WaitCounter = 0;
+volatile uint32_t WaitTime = 0;
 
 
 // Variables to update:
@@ -69,8 +70,9 @@ float Deg = 360.0;            //Degree of rotation
 //
 
 void setup()
-{
+{  
   Desired_Freq = RPS * Num_Pole_Pairs;                          //Desired sine wave freq [Hz]
+  WaitTime = 16000 / ((uint32_t)(Base_Freq / Desired_Freq));    //Wait 1 sec. OVF every 64 [us] -> 16000 is 1 second & counter will increment only if OVF_Counter > (Base_Freq / Desired_Freq).
   Deg_In_Index = (unsigned long)(Deg * ((float(Sine_Len) * Num_Pole_Pairs) / 360.0));   //Desired motion in degrees in units of sine array indices  
   cli();                                      //Disable interrupts
   CLKPR = (1 << CLKPCE);                      //Enable change of the clock prescaler
@@ -191,7 +193,7 @@ ISR (TIMER0_OVF_vect)
         OCR0B = 255;
         OCR1B = 255;
         OCR2B = 255;
-        if (WaitCounter > 50)
+        if (WaitCounter > WaitTime)
         {          
           Direction = -Direction;
           Sine_Index_Counter = 0;    
@@ -203,6 +205,6 @@ ISR (TIMER0_OVF_vect)
   }
 //  Serial.print(OCR0A);
 //  Serial.print(" ");
-//  Serial.println(OCR0B);   
+//  Serial.println(WaitTime);   
 //  Serial.println(OVF_Counter);
 }
