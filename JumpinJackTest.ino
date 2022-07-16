@@ -1,18 +1,24 @@
-/* Works well (July 15th)
-   15 sample sine wave look up table.
+/* Tested. Works well (July 16th).
    16Mhz CPU clk & clkI/O -> Prescaler of 4 -> 4Mhz
    1 OVF scenario will occur every 256 * 2 = 512 samples.
-   1/4MHz * 512 = 128[us]
-   going over the 40 sample look-up table will take 128us * 40 = 5.12[ms] -> 195.3125[Hz] / # of pole pairs = RPS
+   1/4MHz * 512 = 128[us]   
    going over the 15 sample look-up table will take 128us * 15 = 1.92[ms] -> 520.833[Hz] / # of pole pairs = RPS
+   Dead-time:   
+   I'll take 250[ns]*8 = 2[us] dead time.
+
+
+   16Mhz CPU clk & clkI/O -> Prescaler of 2 -> 8Mhz
+   1 OVF scenario will occur every 256 * 2 = 512 samples.
+   1/8MHz * 512 = 64[us]   
+   going over the 15 sample look-up table will take 64us * 15 = 0.96[ms] -> 1041.666[Hz] / # of pole pairs = RPS
+   Dead-time:   
+   I'll take 125[ns]*8 = 1[us] dead time.
   
    // Setting the LED display
    https://lastminuteengineers.com/tm1637-arduino-tutorial/
    //Atmega328 pin numbers:
    http://www.learningaboutelectronics.com/Articles/Atmega328-pinout.php
-   Dead-time:
-   Fall time was measured at ~5.8 [us] so I need a minimum of. Each clk period takes 250[ns], so I'll take 250*24 = 6[us] dead time.
-   Fall time seems much lower no. I'll take 250[ns]*8 = 2[us] dead time.
+   
    //
    //To-do *****************************************************************************
    Save last phase configuration to EEPROM. ********************************************
@@ -34,7 +40,8 @@
 // Generated using: https://www.daycounter.com/Calculators/Sine-Generator-Calculator.phtml
 const uint8_t Sine[] = {0x7e,0xb4,0xe0,0xf8,0xf8,0xe0,0xb4,0x7e,0x47,0x1b,0x4,0x4,0x1b,0x47,0x7e};
 const uint8_t Sine_Len = 15;              //Sine table length
-float Base_Freq = 520.8333;               //[Hz] Maximal frequency if the sine wave array index is incremented every OVF occurance 
+//float Base_Freq = 520.8333;               // [Hz] Maximal frequency if the sine wave array index is incremented every OVF occurance. Prescaler = 4.
+float Base_Freq = 1041.666;               //[Hz] Maximal frequency if the sine wave array index is incremented every OVF occurance. Prescaler = 2.
 
 //const uint8_t Sine[] = {0x80,0x94,0xa8,0xbb,0xcc,0xdb,0xe8,0xf3,0xfa,0xfb,0xfb,0xfb,0xf7,0xee,0xe2,0xd4,0xc4,0xb1,0x9e,0x8a,0x75,0x61,0x4e,0x3b,0x2b,0x1d,0x11,0x8,0x4,0x4,0x4,0x5,0xc,0x17,0x24,0x33,0x44,0x57,0x6b,0x80};
 //const uint16_t Sine_Len = 40;              //Sine table length
@@ -51,14 +58,14 @@ volatile uint32_t Sine_Index_Counter = 0; //Counter, increments every time a sin
 volatile uint32_t Deg_In_Index = 0;                //Desired sine wave freq [Hz], updated below
 
 float Desired_Freq = 0.0;                 //Desired motion in degrees in units of sine array indices. Updated below.
-volatile uint32_t Counter = 0;
+volatile uint32_t WaitCounter = 0;
 
 
 // Variables to update:
 float Num_Pole_Pairs = 7.0;   //# of pole pairs.
-float RPS = 70.0;                    //Rotations per second
+float RPS = 1.0;                    //Rotations per second
 float Amp = 0.5;                    //Leave as 1.0, messes up DT
-float Deg = 3600.0;            //Degree of rotation
+float Deg = 360.0;            //Degree of rotation
 //
 
 void setup()
@@ -67,7 +74,8 @@ void setup()
   Deg_In_Index = (unsigned long)(Deg * ((float(Sine_Len) * Num_Pole_Pairs) / 360.0));   //Desired motion in degrees in units of sine array indices  
   cli();                                      //Disable interrupts
   CLKPR = (1 << CLKPCE);                      //Enable change of the clock prescaler
-  CLKPR = (1 << CLKPS1);                      //Set system clock prescaler to 4. Beforehand DT had to be increased to a large value due to fall time of ~6 us of mosfet.
+//  CLKPR = (1 << CLKPS1);                      //Set system clock prescaler to 4. Beforehand DT had to be increased to a large value due to fall time of ~6 us of mosfet.
+  CLKPR = (1 << CLKPS0);                      //Set system clock prescaler to 2.
   sei();
   Pwm_Config();
 //  Serial.begin(2000000);                        //Set the baud rate to double that which is set in "Serial Monitor" due to the prescaler being 2 instead of 1.  
@@ -176,8 +184,19 @@ ISR (TIMER0_OVF_vect)
       }
       else
       {
-        Direction = -Direction;
-        Sine_Index_Counter = 0;
+        WaitCounter++;
+        OCR0A = 0;
+        OCR1A = 0;
+        OCR2A = 0;
+        OCR0B = 255;
+        OCR1B = 255;
+        OCR2B = 255;
+        if (WaitCounter > 50)
+        {          
+          Direction = -Direction;
+          Sine_Index_Counter = 0;    
+          WaitCounter = 0;      
+        }
       }
       OVF_Counter = 0;
     }
