@@ -1,11 +1,4 @@
 /* Tested. Works well (July 16th).
-   16Mhz CPU clk & clkI/O -> Prescaler of 4 -> 4Mhz
-   1 OVF scenario will occur every 256 * 2 = 512 samples.
-   1/4MHz * 512 = 128[us]   
-   going over the 15 sample look-up table will take 128us * 15 = 1.92[ms] -> 520.833[Hz] / # of pole pairs = RPS
-   Dead-time:   
-   I'll take 250[ns]*8 = 2[us] dead time.
-
 
    16Mhz CPU clk & clkI/O -> Prescaler of 2 -> 8Mhz
    1 OVF scenario will occur every 256 * 2 = 512 samples.
@@ -14,15 +7,6 @@
    Dead-time:   
    I'll take 125[ns]*8 = 1[us] dead time.
   
-   // Setting the LED display
-   https://lastminuteengineers.com/tm1637-arduino-tutorial/
-   //Atmega328 pin numbers:
-   http://www.learningaboutelectronics.com/Articles/Atmega328-pinout.php
-   
-   //
-   //To-do *****************************************************************************
-   Save last phase configuration to EEPROM. ********************************************
-   *************************************************************************************
 */
 #define _DISABLE_ARDUINO_TIMER0_INTERRUPT_HANDLER_  //These 2 lines were added to be able to compile. Also changed wiring.c file. Disables the previous overflow handles used for millis(), micros(), delay() etc.
 #include <wiring.c>                                 //Reference: https://stackoverflow.com/questions/46573550/atmel-arduino-isrtimer0-ovf-vect-wont-compile-first-defined-in-vector/48779546
@@ -33,23 +17,18 @@
 //
 //millis(), delay() don't work as expected due to use of timers in PWM.
 //Approx. time of loop ~
-#define TEN_MS_OVF      160         // 160 OVF events (64[us]) results in 10[ms], which is the initial delay we need.
+#define TEN_MS_OVF      160         // 160 OVF events (64[us]) results in 10[ms], which is the initial delay we need to charge bootstrap caps.
 #define POSITIVE        1
 #define NEGATIVE        -1
 
 // Generated using: https://www.daycounter.com/Calculators/Sine-Generator-Calculator.phtml
 const uint8_t Sine[] = {0x7e,0xb4,0xe0,0xf8,0xf8,0xe0,0xb4,0x7e,0x47,0x1b,0x4,0x4,0x1b,0x47,0x7e};
 const uint8_t Sine_Len = 15;              //Sine table length
-//float Base_Freq = 520.8333;               // [Hz] Maximal frequency if the sine wave array index is incremented every OVF occurance. Prescaler = 4.
 float Base_Freq = 1041.666;               //[Hz] Maximal frequency if the sine wave array index is incremented every OVF occurance. Prescaler = 2.
-
-//const uint8_t Sine[] = {0x80,0x94,0xa8,0xbb,0xcc,0xdb,0xe8,0xf3,0xfa,0xfb,0xfb,0xfb,0xf7,0xee,0xe2,0xd4,0xc4,0xb1,0x9e,0x8a,0x75,0x61,0x4e,0x3b,0x2b,0x1d,0x11,0x8,0x4,0x4,0x4,0x5,0xc,0x17,0x24,0x33,0x44,0x57,0x6b,0x80};
-//const uint16_t Sine_Len = 40;              //Sine table length
-//float Base_Freq = 195.3125;               //[Hz] Maximal frequency if the sine wave array index is incremented every OVF occurance 
 
 const uint8_t DT = 4;                     //Dead time to prevent short-circuit betweem high & low mosfets
 volatile int8_t  Direction = 1;           //1: Positive, -1: Negative
-uint32_t Init_PWM_Counter = 0;            //Used for charging the bootstrap capacitors, source below
+uint32_t Init_PWM_Counter = 0;            //Used for charging the bootstrap capacitors
 volatile int16_t Sine_Index = 0;           //3 sine wave indices are used to allow for phase shifted sine waves.
 volatile int16_t Sine_Index_120 = int16_t (Sine_Len / 3);
 volatile int16_t Sine_Index_240 = int16_t((Sine_Len * 2) / 3);       //Sine_Len must be lower than 128, otherwise, change eq. 
@@ -64,8 +43,8 @@ volatile uint32_t WaitTime = 0;
 
 // Variables to update:
 float Num_Pole_Pairs = 7.0;   //# of pole pairs.
-float RPS = 1.0;                    //Rotations per second
-float Amp = 0.5;                    //Leave as 1.0, messes up DT
+float RPS = 1.0;              //Rotations per second
+float Amp = 0.5;              //Amplitude of sine waves
 float Deg = 360.0;            //Degree of rotation
 //
 
@@ -76,9 +55,8 @@ void setup()
   Deg_In_Index = (unsigned long)(Deg * ((float(Sine_Len) * Num_Pole_Pairs) / 360.0));   //Desired motion in degrees in units of sine array indices  
   cli();                                      //Disable interrupts
   CLKPR = (1 << CLKPCE);                      //Enable change of the clock prescaler
-//  CLKPR = (1 << CLKPS1);                      //Set system clock prescaler to 4. Beforehand DT had to be increased to a large value due to fall time of ~6 us of mosfet.
   CLKPR = (1 << CLKPS0);                      //Set system clock prescaler to 2.
-  sei();
+  sei();                                      //Enable interrupts
   Pwm_Config();
 //  Serial.begin(2000000);                        //Set the baud rate to double that which is set in "Serial Monitor" due to the prescaler being 2 instead of 1.  
 }
@@ -101,7 +79,6 @@ void Wait_A_Bit(uint32_t Executions_To_Wait)
 
 void Pwm_Config()
 {
-   //***Check in scope. Need to make sure the pins are LOW prior to and after setting them to outputs so don't accidentally cause short in IPM.
   DDRD = (1 << DDD6) | (1 << DDD5) | (1 << DDD3); //Sets the OC0A, OC0B and OC2B pins to outputs
   DDRB = (1 << DDB3) | (1 << DDB2) | (1 << DDB1); //Sets the OC2A, OC1B and OC1A pins to outputs
   cli();                      //Disable interrupts
@@ -145,7 +122,6 @@ ISR (TIMER0_OVF_vect)
       {
         if (Direction == POSITIVE)
         {
-  //        Serial.println(Sine_Index);
           Sine_Index++;
           Sine_Index_120++;
           Sine_Index_240++;
@@ -155,7 +131,6 @@ ISR (TIMER0_OVF_vect)
         }
         else if (Direction == NEGATIVE)
         {
-  //        Serial.println(Sine_Index);
           Sine_Index--;
           Sine_Index_120--;
           Sine_Index_240--;
@@ -203,8 +178,4 @@ ISR (TIMER0_OVF_vect)
       OVF_Counter = 0;
     }
   }
-//  Serial.print(OCR0A);
-//  Serial.print(" ");
-//  Serial.println(WaitTime);   
-//  Serial.println(OVF_Counter);
 }
