@@ -141,23 +141,38 @@ ISR (TIMER0_OVF_vect)
         //  
         Sine_Index_Counter++;
 
-        if ((Amp * Sine[Sine_Index] - DT) < 0) OCR0A = 0;
-        else OCR0A = uint8_t(Amp * Sine[Sine_Index] - DT);        
-
-        if ((Amp * Sine[Sine_Index]) < 2*DT) OCR0B = 2*DT;
-        else OCR0B = uint8_t(Amp * Sine[Sine_Index] + DT);
-               
-        if ((Amp * Sine[Sine_Index_120] - DT) < 0) OCR1A = 0;
-        else OCR1A = uint8_t(Amp * Sine[Sine_Index_120] - DT);
-
-        if ((Amp * Sine[Sine_Index_120]) < 2*DT) OCR1B = 2*DT;
-        OCR1B = uint8_t(Amp * Sine[Sine_Index_120] + DT);
-           
-        if ((Amp * Sine[Sine_Index_240] - DT) < 0) OCR2A = 0;
-        else OCR2A = uint8_t(Amp * Sine[Sine_Index_240] - DT);
-
-        if ((Amp * Sine[Sine_Index_240]) < 2*DT) OCR2B = 2*DT;
-        OCR2B = uint8_t(Amp * Sine[Sine_Index_240] + DT);
+        if ((Amp * Sine[Sine_Index] - DT) < 0)
+        {
+           OCR0A = 0;
+           OCR0B = 2*DT;
+        }         
+        else
+        {
+           OCR0A = uint8_t(Amp * Sine[Sine_Index] - DT);
+           OCR0B = uint8_t(Amp * Sine[Sine_Index] + DT);
+        }
+     
+        if ((Amp * Sine[Sine_Index_120] - DT) < 0)
+        {
+           OCR1A = 0;
+           OCR1B = 2*DT;
+        }         
+        else
+        {
+           OCR1A = uint8_t(Amp * Sine[Sine_Index_120] - DT);
+           OCR1B = uint8_t(Amp * Sine[Sine_Index_120] + DT);
+        }
+         
+        if ((Amp * Sine[Sine_Index_240] - DT) < 0)
+        {
+           OCR2A = 0;
+           OCR2B = 2*DT;
+        }         
+        else
+        {
+           OCR2A = uint8_t(Amp * Sine[Sine_Index_240] - DT);
+           OCR2B = uint8_t(Amp * Sine[Sine_Index_240] + DT);
+        }                 
       }
       else
       {
