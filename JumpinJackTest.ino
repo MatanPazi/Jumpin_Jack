@@ -22,11 +22,11 @@
 #define NEGATIVE        -1
 
 // Generated using: https://www.daycounter.com/Calculators/Sine-Generator-Calculator.phtml
-const uint8_t Sine[] = {0x7e,0xb4,0xe0,0xf8,0xf8,0xe0,0xb4,0x7e,0x47,0x1b,0x4,0x4,0x1b,0x47,0x7e};
+const int8_t Sine[] = {0x7e,0xb4,0xe0,0xf8,0xf8,0xe0,0xb4,0x7e,0x47,0x1b,0x4,0x4,0x1b,0x47,0x7e};
 const uint8_t Sine_Len = 15;              //Sine table length
 float Base_Freq = 1041.666;               //[Hz] Maximal frequency if the sine wave array index is incremented every OVF occurance. Prescaler = 2.
 
-const uint8_t DT = 4;                     //Dead time to prevent short-circuit betweem high & low mosfets
+float DT = 4.0;                     //Dead time to prevent short-circuit betweem high & low mosfets
 volatile int8_t  Direction = 1;           //1: Positive, -1: Negative
 uint32_t Init_PWM_Counter = 0;            //Used for charging the bootstrap capacitors
 volatile int16_t Sine_Index = 0;           //3 sine wave indices are used to allow for phase shifted sine waves.
@@ -141,37 +141,37 @@ ISR (TIMER0_OVF_vect)
         //  
         Sine_Index_Counter++;
 
-        if ((Amp * Sine[Sine_Index] - DT) < 0)
+        if ((Amp * (float)Sine[Sine_Index] - DT) < 0)
         {
            OCR0A = 0;
            OCR0B = 2*DT;
         }         
         else
         {
-           OCR0A = uint8_t(Amp * Sine[Sine_Index] - DT);
-           OCR0B = uint8_t(Amp * Sine[Sine_Index] + DT);
+           OCR0A = uint8_t(Amp * (float)Sine[Sine_Index] - DT);
+           OCR0B = uint8_t(Amp * (float)Sine[Sine_Index] + DT);
         }
      
-        if ((Amp * Sine[Sine_Index_120] - DT) < 0)
+        if ((Amp * (float)Sine[Sine_Index_120] - DT) < 0)
         {
            OCR1A = 0;
            OCR1B = 2*DT;
         }         
         else
         {
-           OCR1A = uint8_t(Amp * Sine[Sine_Index_120] - DT);
-           OCR1B = uint8_t(Amp * Sine[Sine_Index_120] + DT);
+           OCR1A = uint8_t(Amp * (float)Sine[Sine_Index_120] - DT);
+           OCR1B = uint8_t(Amp * (float)Sine[Sine_Index_120] + DT);
         }
          
-        if ((Amp * Sine[Sine_Index_240] - DT) < 0)
+        if ((Amp * (float)Sine[Sine_Index_240] - DT) < 0)
         {
            OCR2A = 0;
            OCR2B = 2*DT;
         }         
         else
         {
-           OCR2A = uint8_t(Amp * Sine[Sine_Index_240] - DT);
-           OCR2B = uint8_t(Amp * Sine[Sine_Index_240] + DT);
+           OCR2A = uint8_t(Amp * (float)Sine[Sine_Index_240] - DT);
+           OCR2B = uint8_t(Amp * (float)Sine[Sine_Index_240] + DT);
         }                 
       }
       else
