@@ -51,7 +51,7 @@ float Deg = 360.0;            //Degree of rotation
 void setup()
 {  
   Desired_Freq = RPS * Num_Pole_Pairs;                          //Desired sine wave freq [Hz]
-  WaitTime = 16000 / ((uint32_t)(Base_Freq / Desired_Freq));    //Wait 1 sec. OVF every 64 [us] -> 16000 is 1 second & counter will increment only if OVF_Counter > (Base_Freq / Desired_Freq).
+  WaitTime = 15625 / ((uint32_t)(Base_Freq / Desired_Freq));    //Wait 1 sec. OVF every 64 [us] -> 15625*64 = 1e6[us] = 1[sec] & counter will increment only if OVF_Counter > (Base_Freq / Desired_Freq).
   Deg_In_Index = (unsigned long)(Deg * ((float(Sine_Len) * Num_Pole_Pairs) / 360.0));   //Desired motion in degrees in units of sine array indices  
   cli();                                      //Disable interrupts
   CLKPR = (1 << CLKPCE);                      //Enable change of the clock prescaler
